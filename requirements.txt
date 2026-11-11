@@ -1,0 +1,9 @@
+# Chọn một backend nhận diện biểu cảm:
+deepface
+tensorflow
+tf-keras          # bắt buộc với TensorFlow >= 2.16
+# fer             # backend:=fer (cũng cần tensorflow)
+
+# Cần bản OpenCV có giao diện (không phải headless) để hiện cửa sổ webcam:
+opencv-python
+numpy
