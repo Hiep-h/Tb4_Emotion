@@ -132,3 +132,10 @@ def test_none_resets_so_same_emotion_can_fire_again():
     e = EdgeTracker(required_consecutive=2, min_interval=0.0)
     seq = ['happy'] * 2 + [NONE] + ['happy'] * 2
     assert [f for i, x in enumerate(seq) if (f := e.process(x, i * 0.1))] == ['happy', 'happy']
+
+
+def test_edge_tracker_reset_lets_a_held_emotion_fire_again():
+    e = EdgeTracker(required_consecutive=2, min_interval=0.0)
+    assert [e.process('happy', i * 0.1) for i in range(4)].count('happy') == 1
+    e.reset()
+    assert [e.process('happy', 1.0 + i * 0.1) for i in range(4)].count('happy') == 1

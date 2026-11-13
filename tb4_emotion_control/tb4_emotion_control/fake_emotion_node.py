@@ -10,6 +10,7 @@ from tb4_emotion_control.emotion_types import (
     DETECTED_EMOTION_TOPIC,
     KEY_CONFIDENCE,
     KEY_EMOTION,
+    KEY_ENABLED,
     KEY_FACE,
     KEY_STAMP,
 )
@@ -43,7 +44,7 @@ class FakeEmotionNode(Node):
             self._last = emotion
         msg = String()
         msg.data = json.dumps({KEY_EMOTION: emotion, KEY_CONFIDENCE: 0.9,
-                               KEY_FACE: True, KEY_STAMP: now})
+                               KEY_FACE: True, KEY_ENABLED: True, KEY_STAMP: now})
         self._pub.publish(msg)
 
 

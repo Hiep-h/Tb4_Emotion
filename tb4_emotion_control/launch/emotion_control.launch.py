@@ -15,10 +15,12 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     args = [
-        DeclareLaunchArgument('backend', default_value='deepface',
-                              description='deepface | fer'),
+        DeclareLaunchArgument('backend', default_value='onnx',
+                              description='onnx (nhẹ, mặc định) | deepface | fer'),
         DeclareLaunchArgument('camera_index', default_value='0'),
         DeclareLaunchArgument('show_preview', default_value='true'),
+        DeclareLaunchArgument('start_enabled', default_value='false',
+                              description='true = robot bật ngay (mặc định tắt, bấm SPACE trong cửa sổ để bật)'),
         DeclareLaunchArgument('fake', default_value='false',
                               description='true = phát biểu cảm giả, không cần webcam'),
         DeclareLaunchArgument('use_stamped', default_value='false',
@@ -35,6 +37,7 @@ def generate_launch_description():
             'backend': LaunchConfiguration('backend'),
             'camera_index': LaunchConfiguration('camera_index'),
             'show_preview': LaunchConfiguration('show_preview'),
+            'start_enabled': LaunchConfiguration('start_enabled'),
         }])
     fake = Node(
         package='tb4_emotion_control', executable='fake_emotion_node',

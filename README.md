@@ -1,11 +1,11 @@
 # TB4 Emotion Control
 
-Bài thực hành: nhận diện biểu cảm khuôn mặt qua webcam và điều khiển TurtleBot di chuyển theo
-quỹ đạo tương ứng, thông qua ROS 2 và topic `/cmd_vel`.
+Bài thực hành: nhận diện biểu cảm khuôn mặt qua webcam và điều khiển TurtleBot di chuyển theo quỹ đạo
+tương ứng, thông qua ROS 2 và topic `/cmd_vel`.
 
 ```
-Webcam ─► OpenCV ─► DeepFace | FER ─► bỏ phiếu ổn định ─► /detected_emotion ─► emotion_behavior_node ─► /cmd_vel
-              └─► cửa sổ hiển thị: khung mặt, 6 thanh điểm, hành động hiện tại
+Webcam ─► YuNet (tìm mặt) ─► FER+ (biểu cảm) ─► bỏ phiếu ─► /detected_emotion ─► emotion_behavior_node ─► /cmd_vel
+              └─► cửa sổ hiển thị: khung mặt, điểm 6 biểu cảm, trạng thái robot
 ```
 
 ## Biểu cảm → hành động
@@ -14,17 +14,17 @@ Webcam ─► OpenCV ─► DeepFace | FER ─► bỏ phiếu ổn định ─�
 |---|---|---|
 | Happy | Quỹ đạo cong sang **trái** | 0,12 m/s + 0,5 rad/s trong 4 s: cung bán kính 0,24 m, quay 2 rad (~115°) |
 | Sad | Quỹ đạo cong sang **phải** | như trên, ngược chiều |
-| Neutral | **Dừng** tại chỗ | dừng ngay, kể cả khi đang chạy một quỹ đạo |
+| Neutral | **Dừng** tại chỗ | không di chuyển |
 | Angry | **Lùi** nhẹ | -0,10 m/s trong 1,5 s (~0,15 m) |
 | Surprise | **Xoay một vòng** tại chỗ | 0,8 rad/s trong 2π/0,8 ≈ 7,85 s |
 | Fear | **Tiến** nhẹ | 0,10 m/s trong 1,5 s (~0,15 m) |
 
-`Disgust` (có trong cả DeepFace và FER nhưng đề không dùng) được coi là "không quyết định", robot
-không làm gì.
+Disgust và contempt (model có thêm) được coi là "không quyết định", robot không làm gì.
 
-Cách dùng khi chạy: mỗi biểu cảm **kích hoạt một lần** khi nó đổi và ổn định. **Giữ nét mặt** trong lúc
-robot chạy (Happy/Sad khoảng 4 s, Surprise khoảng 8 s), vì khi nét mặt chuyển về Neutral thì robot
-dừng ngay. Muốn lặp quỹ đạo khi vẫn giữ nét mặt, đặt `retrigger_s` (ví dụ `5.0`).
+**Cách quỹ đạo chạy:** mỗi biểu cảm kích hoạt một quỹ đạo có thời hạn và nó **chạy trọn vẹn**. Trong lúc
+đang chạy, biểu cảm mới hoặc mặt nhấp nháy bị bỏ qua (không cắt, không khởi động lại). Chạy xong nghỉ
+1 s; nếu bạn vẫn giữ biểu cảm thì quỹ đạo lặp lại. Muốn Neutral cũng cắt quỹ đạo đang chạy, đặt
+`neutral_interrupts:=true` cho `emotion_behavior_node`.
 
 ## Cài đặt
 
@@ -32,47 +32,71 @@ Ubuntu 22.04, ROS 2 Humble, webcam.
 
 ```bash
 # 1. Đặt package vào workspace
-cd ~/ros2_ws/src && git clone <repo này>
+cd ~/ros2_ws/src && git clone https://github.com/Hiep-h/Tb4_Emotion.git && cd Tb4_Emotion
 
-# 2. Thư viện nhận diện biểu cảm (đúng thứ tự). TensorFlow bản CPU ~274 MB, nhẹ hơn bản đầy đủ ~572 MB
-pip install --default-timeout=120 --retries 10 tensorflow-cpu==2.21.0
-pip install --default-timeout=120 --retries 10 --no-deps tf-keras==2.21.0
+# 2. Thư viện nhẹ (không cần TensorFlow)
 pip install --default-timeout=120 --retries 10 -r requirements.txt
-pip install --default-timeout=120 --retries 10 --no-deps deepface retina-face
 
-# 3. Build
+# 3. Tải 2 model nhỏ về ~/.tb4_emotion (35 MB + 0,2 MB). Tự thử lại và tiếp tục phần đã tải khi đứt mạng
+bash scripts/download_models.sh
+
+# 4. Build
 cd ~/ros2_ws && colcon build --packages-select tb4_emotion_control
 source install/setup.bash
 ```
 
 Lưu ý khi cài:
-- `pip install deepface` **không** tự cài TensorFlow. Cần TensorFlow và, với TF ≥ 2.16, cả `tf-keras`
-  (lệnh ở bước 2). Tổng dung lượng tải khoảng 0,4 GB (Linux x86_64). Lần chạy đầu DeepFace còn tải
-  thêm trọng số model nên cần mạng.
-- Nếu `import tensorflow` báo `No module named 'tensorflow.python'` thì cài đặt bị ngắt giữa chừng:
-  `pip uninstall -y tensorflow tensorflow-cpu`, xóa thư mục `tensorflow` còn sót trong
-  `~/.local/lib/python3.10/site-packages/`, rồi cài lại.
 - **NumPy phải là 1.x.** `opencv-python` 4.12 trở lên đòi NumPy 2, mà NumPy 2 làm hỏng scipy/pandas của
-  hệ thống (lỗi `module that was compiled using NumPy 1.x cannot be run in NumPy 2` hoặc
-  `numpy.dtype size changed`) và `cv_bridge` của ROS 2 Humble. Vì vậy `requirements.txt` ghim NumPy < 2 và
-  OpenCV 4.11. Nếu lỡ cài phải bản mới:
+  hệ thống và `cv_bridge` của ROS 2 Humble (lỗi `compiled using NumPy 1.x cannot be run in NumPy 2`).
+  Vì vậy ghim NumPy < 2 và OpenCV 4.11. Nếu lỡ cài bản mới:
   `pip uninstall -y opencv-python opencv-python-headless opencv-contrib-python opencv-contrib-python-headless`
   rồi `pip install -r requirements.txt`.
-- DeepFace và retina-face khai báo cần OpenCV bản *headless* (không hiện được cửa sổ), nên cài chúng bằng
-  `--no-deps` như trên để không ghi đè bản OpenCV có giao diện.
-- Backend `fer` (`backend:=fer`) với `fer` 25.x được import bằng `from fer.fer import FER`; mã đã xử lý
-  cả cách import cũ.
+- `scripts/download_models.sh` kiểm tra SHA-256; chạy lại bao nhiêu lần cũng được.
+- Backend DeepFace/FER vẫn dùng được (`backend:=deepface`) nhưng cần TensorFlow, nặng hơn và tìm mặt kém
+  hơn (xem bên dưới). Cách cài ở cuối `requirements.txt`.
 
 ## Chạy
 
-Terminal 1, khởi chạy TurtleBot trong Gazebo (theo các bài thực hành trước, ví dụ):
+Terminal 1, TurtleBot 4 trong Gazebo (theo các bài thực hành trước), ví dụ:
 
 ```bash
 ros2 launch turtlebot4_ignition_bringup turtlebot4_ignition.launch.py
 ```
 
-Nếu Gazebo kẹt ở `Requesting list of world names` và cửa sổ đen "not responding": world mặc định
-`warehouse` tải model từ Internet (Fuel) nên mạng yếu sẽ treo. Dùng world trống không cần mạng:
+Terminal 2:
+
+```bash
+source ~/ros2_ws/install/setup.bash
+ros2 launch tb4_emotion_control emotion_control.launch.py use_sim_time:=true
+```
+
+**Phím trong cửa sổ webcam:**
+
+| Phím | Tác dụng |
+|---|---|
+| `SPACE` | Bật/tắt robot. **Mặc định TẮT** để an toàn; nhận diện vẫn chạy. Dòng trạng thái ghi `ROBOT TAT - nhan SPACE de bat` |
+| `s` | Dừng chuyển động đang chạy |
+| `q` / `Esc` | Thoát |
+
+Muốn robot bật ngay khi khởi động: thêm `start_enabled:=true`.
+
+**Cửa sổ hiển thị:** khung quanh khuôn mặt (màu theo biểu cảm) kèm nhãn và phần trăm, cột điểm 6 biểu cảm
+bên phải, thanh trạng thái phía trên (biểu cảm đã xác nhận và hành động robot đang chạy, còn mấy giây), và
+FPS/thời gian suy luận ở dưới. Nhãn viết tiếng Việt không dấu vì phông OpenCV không vẽ được dấu.
+
+Tùy chọn launch: `backend:=onnx|deepface|fer`, `camera_index:=1`, `show_preview:=false`,
+`start_enabled:=true`, `use_stamped:=true` (nếu `/cmd_vel` là `TwistStamped`, ROS 2 Jazzy trở lên).
+
+**Khi chạy với Gazebo hãy thêm `use_sim_time:=true`.** Gazebo hiếm khi chạy đúng 100% tốc độ thời gian
+thực (xem phần trăm ở góc dưới cửa sổ Gazebo). Nếu chỉ 30% mà node đếm giờ theo đồng hồ thật thì quỹ đạo bị
+cụt. Với `use_sim_time:=true` quỹ đạo tính theo đồng hồ mô phỏng nên robot đi đủ, chỉ chậm hơn ngoài đời.
+
+Kiểm tra riêng phần robot khi chưa có webcam: `fake:=true` phát lần lượt cả 6 biểu cảm (mỗi biểu cảm
+10 s). Xem `ros2 topic echo /cmd_vel`.
+
+### Gazebo bị kẹt / cửa sổ đen "not responding"
+
+World mặc định `warehouse` tải model từ Internet (Fuel) nên mạng yếu sẽ treo. Dùng world trống:
 
 ```bash
 python3 scripts/make_empty_world.py        # sinh ~/empty.sdf từ warehouse.sdf đã cài, bỏ model Fuel
@@ -80,72 +104,55 @@ sudo cp ~/empty.sdf /opt/ros/humble/share/turtlebot4_ignition_bringup/worlds/emp
 ros2 launch turtlebot4_ignition_bringup turtlebot4_ignition.launch.py world:=empty
 ```
 
-(Cách nhanh hơn: `world:=maze`, world này không dùng model tải về.)
-
-Terminal 2:
-
-```bash
-source ~/ros2_ws/install/setup.bash
-ros2 launch tb4_emotion_control emotion_control.launch.py
-```
-
-**Khi chạy với Gazebo hãy thêm `use_sim_time:=true`.** Gazebo hiếm khi chạy đúng 100% tốc độ thời gian thực
-(góc dưới cửa sổ Gazebo hiện phần trăm). Nếu chỉ 30% mà node đếm giờ theo đồng hồ thật thì quỹ đạo bị cụt
-(ví dụ Surprise chỉ quay khoảng 1/4 vòng). Với `use_sim_time:=true` thời lượng quỹ đạo tính theo đồng hồ
-mô phỏng nên robot vẫn đi đủ, chỉ là chậm hơn ngoài đời thật:
-
-```bash
-ros2 launch tb4_emotion_control emotion_control.launch.py use_sim_time:=true
-```
-
-Tùy chọn: `backend:=fer`, `camera_index:=1`, `show_preview:=false`.
-Nhấn `q` hoặc `Esc` trong cửa sổ webcam để thoát.
-
-Kiểm tra phía robot khi chưa có webcam hoặc muốn xem từng quỹ đạo: `fake:=true` phát lần lượt cả 6
-biểu cảm (mỗi biểu cảm 10 s, xen kẽ Neutral):
-
-```bash
-ros2 launch tb4_emotion_control emotion_control.launch.py fake:=true
-ros2 topic echo /cmd_vel
-```
-
-Nếu `/cmd_vel` của robot là `TwistStamped` (ROS 2 Jazzy trở lên) thêm `use_stamped:=true`.
+World trống cũng tránh để robot đi cung vào tường (world `maze` có tường sát robot). Mô phỏng hay chạy chậm,
+nên đóng bớt ứng dụng khác khi chạy.
 
 ## Thành phần
 
 | Node | Vào | Ra | Vai trò |
 |---|---|---|---|
-| `emotion_recognition_node` | Webcam | `/detected_emotion` (`std_msgs/String`, JSON) | Phân tích biểu cảm trong luồng riêng (webcam luôn mượt), bỏ phiếu đa số, vẽ kết quả |
-| `emotion_behavior_node` | `/detected_emotion` | `/cmd_vel` | Kích hoạt quỹ đạo, dừng khi Neutral hoặc mất tín hiệu |
+| `emotion_recognition_node` | Webcam, `/emotion_robot_state` | `/detected_emotion` (JSON) | Tìm mặt + phân loại biểu cảm ở luồng riêng, bỏ phiếu, vẽ cửa sổ, nhận phím |
+| `emotion_behavior_node` | `/detected_emotion` | `/cmd_vel`, `/emotion_robot_state` | Kích hoạt quỹ đạo, bật/tắt, dừng, dừng khi mất tín hiệu |
 | `fake_emotion_node` | | `/detected_emotion` | Giả lập khi chưa có webcam |
 
-Bản tin: `{"emotion": "happy", "confidence": 0.87, "face": true, "stamp": 1730000000.1}`;
+Bản tin: `{"emotion": "happy", "confidence": 0.87, "face": true, "enabled": true, "stop_id": 0, "stamp": 1730000000.1}`;
 `emotion` là một trong `happy sad neutral angry surprise fear none`.
 
-Hiển thị thời gian thực: khung quanh khuôn mặt kèm nhãn và phần trăm, sáu thanh điểm số, và dòng
-`Action: HAPPY -> curve left` khi biểu cảm đã ổn định. Nhãn viết tiếng Anh vì phông OpenCV không vẽ
-được tiếng Việt có dấu.
+### Vì sao dùng YuNet + FER+
+
+Trên video thử của chính người làm (47 khung, mỗi 2 giây), bộ tìm mặt Haar của OpenCV (cũng là bộ mặc định của
+DeepFace) chỉ thấy mặt người dùng ở 34/47 khung, hay mất khi mặt gần camera, hơi nghiêng hoặc đang nói, và
+thỉnh thoảng bắt nhầm mặt người ngồi phía sau. YuNet thấy ở 46/47 khung. FER+ cho nhãn phù hợp với nét mặt
+thật (happy lúc cười, surprise lúc há miệng). Đó là một video của một người, không phải thang đo chính thức.
 
 ### Chống nhiễu và an toàn
 
-- Khung hình không thấy mặt, độ tin cậy dưới `min_confidence` (0,45) hoặc kết quả là Disgust đều
-  bỏ phiếu "none". Một biểu cảm chỉ được công bố khi thắng ≥ 3/5 lần phân tích gần nhất.
-- `emotion_behavior_node` chỉ kích hoạt khi thấy cùng biểu cảm ≥ 3 bản tin liên tiếp, mỗi lần giữ
-  biểu cảm chỉ kích hoạt một lần, và cách nhau ≥ 0,5 s.
-- Không nhận được `/detected_emotion` trong 2 s (webcam hoặc node nhận diện chết) thì robot dừng.
+- **Chỉ xét mặt đủ lớn:** mặt rộng dưới 15% khung hình (`min_face_ratio`) bị bỏ, nên người ngồi phía sau không
+  điều khiển robot.
+- Độ tin cậy dưới `min_confidence` (0,40), không thấy mặt, hoặc disgust/contempt đều bỏ phiếu "none"; biểu
+  cảm chỉ được công bố khi thắng ≥ 3/5 lần phân tích gần nhất, rồi `emotion_behavior_node` cần thấy ≥ 3 bản tin
+  liên tiếp.
+- Robot **tắt** khi khởi động; chỉ chạy sau khi bấm `SPACE`.
+- Không nhận được `/detected_emotion` trong 2 s (webcam hoặc node chết) thì robot dừng.
 - Vận tốc bị chặn: tối đa 0,25 m/s và 1,2 rad/s; tham số vượt ngưỡng làm node không khởi động.
-- Mất mặt trong lúc robot đang chạy không dừng robot (quỹ đạo vốn ngắn); chỉ Neutral hoặc mất tín hiệu
-  mới dừng.
 
 ### Tham số
 
-`emotion_recognition_node`: `backend` (`deepface`|`fer`), `detector_backend` (`opencv`),
-`camera_index`, `min_confidence`, `vote_window`/`vote_min`, `analyze_interval_s` (0,15),
-`show_preview`, `mirror`.
+`emotion_recognition_node`: `backend` (`onnx`|`deepface`|`fer`), `model_path`, `camera_index`,
+`min_confidence`, `min_face_ratio`, `vote_window`/`vote_min`, `analyze_interval_s` (0,15), `show_preview`,
+`mirror`, `start_enabled`.
 
-`emotion_behavior_node`: `curve_linear`, `curve_angular`, `curve_duration`, `back_speed`,
-`back_duration`, `forward_speed`, `forward_duration`, `spin_speed`, `spin_turns`,
-`required_consecutive`, `min_trigger_interval`, `retrigger_s`, `signal_timeout`, `use_stamped`.
+`emotion_behavior_node`: `curve_linear`, `curve_angular`, `curve_duration`, `back_speed`, `back_duration`,
+`forward_speed`, `forward_duration`, `spin_speed`, `spin_turns`, `required_consecutive`,
+`min_trigger_interval`, `cooldown_s`, `retrigger_s`, `neutral_interrupts`, `signal_timeout`, `use_stamped`.
+
+## Mẹo để nhận đúng
+
+- Ngồi cách camera 0,5-1 m, mặt chính diện, đủ sáng. Mặt chiếm gần hết khung hình vẫn nhận được nhưng nên lùi
+  ra một chút.
+- Làm biểu cảm rõ và giữ khoảng 1 giây. Fear và Surprise dễ lẫn nhau (cả hai há miệng, mở to mắt); Angry và
+  Sad cần nét mặt rõ. Nếu khó nhận, hạ `min_confidence` xuống 0,30.
+- Nếu người ngồi sau vẫn bị bắt, tăng `min_face_ratio` (ví dụ 0,20).
 
 ## Kiểm thử
 
@@ -153,17 +160,14 @@ Hiển thị thời gian thực: khung quanh khuôn mặt kèm nhãn và phần 
 cd tb4_emotion_control && python3 -m pytest test -q
 ```
 
-22 bài test phủ phần logic không cần ROS: chuyển điểm DeepFace (phần trăm) và FER (0-1) về cùng thang,
-quỹ đạo từng biểu cảm (hướng cung, lùi/tiến, xoay đúng 2π), giới hạn an toàn, bỏ phiếu và chống kích
-hoạt lặp, phần vẽ kết quả.
+29 bài test phủ phần logic không cần ROS: chuyển điểm các backend về cùng thang, thứ tự nhãn của FER+, chọn
+mặt lớn nhất, bỏ mặt nhỏ, quỹ đạo từng biểu cảm (hướng cung, lùi/tiến, xoay đúng 2π), giới hạn an toàn, bỏ
+phiếu và chống kích hoạt lặp, phần vẽ kết quả.
 
 ## Hạn chế
 
-- **Chưa chạy với DeepFace/FER, webcam và Gazebo thật** (đã kiểm tra các node bằng bản giả của chúng).
-  Cần thử trên máy có ROS 2 và webcam; độ chính xác biểu cảm phụ thuộc ánh sáng và góc mặt.
-- DeepFace chạy bằng CPU khoảng vài lần phân tích mỗi giây; độ trễ từ lúc đổi nét mặt đến lúc robot
-  động khoảng 0,5-1 s do bỏ phiếu.
-- Quỹ đạo là **vòng hở theo thời gian**: góc xoay và quãng đường phụ thuộc robot chạy đúng vận tốc
-  lệnh (trên Gazebo tốc độ thực thấp hơn 1x có thể làm xoay chưa đủ một vòng). Muốn chính xác hơn cần
-  phản hồi từ `/odom`.
+- Quỹ đạo là **vòng hở theo thời gian**: góc xoay và quãng đường phụ thuộc robot chạy đúng vận tốc lệnh.
+  Muốn chính xác hơn cần phản hồi từ `/odom`.
+- Độ chính xác biểu cảm phụ thuộc ánh sáng, góc mặt và người dùng; FER+ được huấn luyện trên ảnh xám 64×64
+  nên hay nhầm giữa vài cặp biểu cảm. Chưa có số đo chính thức trên nhiều người.
 - Chỉ phân tích khuôn mặt lớn nhất trong khung hình.

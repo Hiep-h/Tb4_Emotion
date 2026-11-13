@@ -62,3 +62,9 @@ class EdgeTracker:
             self._last_fire = now
             return label
         return None
+
+    def reset(self):
+        """Forget the current stream, e.g. while the robot is switched off."""
+        self._last = NONE
+        self._count = 0
+        self._armed = None

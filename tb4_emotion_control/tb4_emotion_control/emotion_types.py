@@ -7,11 +7,14 @@ NONE = 'none'
 
 DETECTED_EMOTION_TOPIC = '/detected_emotion'
 CMD_VEL_TOPIC = '/cmd_vel'
+ROBOT_STATE_TOPIC = '/emotion_robot_state'
 
 KEY_EMOTION = 'emotion'
 KEY_CONFIDENCE = 'confidence'
 KEY_FACE = 'face'
 KEY_STAMP = 'stamp'
+KEY_ENABLED = 'enabled'
+KEY_STOP_ID = 'stop_id'
 
 
 def normalize_scores(scores):
@@ -34,3 +37,11 @@ def pick_emotion(scores):
     if best not in EMOTIONS:
         return NONE, 0.0
     return best, scores[best]
+
+
+def face_is_large_enough(box, frame_width, min_ratio):
+    """True if the face is wide enough to be the person at the camera, not someone behind them.
+
+    A person at 0.5-1 m is ~25-35% of the frame width; classmates in the background are ~5-10%.
+    """
+    return box[2] >= min_ratio * frame_width
