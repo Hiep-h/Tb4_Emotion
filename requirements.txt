@@ -1,10 +1,11 @@
-# Cài TensorFlow riêng trước, đừng dùng `pip install -r` cho dòng TensorFlow (xem README):
-#   pip install tensorflow-cpu==2.21.0        # ~274 MB, đủ cho DeepFace chạy bằng CPU
-#   pip install --no-deps tf-keras==2.21.0    # --no-deps để pip không tải thêm bản tensorflow ~572 MB
-# Phần còn lại cài bằng: pip install -r requirements.txt
-deepface
+# Cài theo đúng các bước trong README (thứ tự và --no-deps quan trọng).
+# NumPy phải là 1.x: NumPy 2.x làm hỏng scipy/pandas của hệ thống và cv_bridge của ROS 2 Humble.
+numpy>=1.26,<2
+ml_dtypes<0.6
+# Bản OpenCV có giao diện cuối cùng cho phép NumPy 1.x (4.12 trở lên đòi NumPy 2):
+opencv-contrib-python==4.11.0.86
+requests
+gdown
+tqdm
+onnxruntime
 # fer             # backend:=fer (kéo thêm PyTorch, rất nặng)
-
-# Cần bản OpenCV có giao diện (không phải headless) để hiện cửa sổ webcam:
-opencv-python
-numpy

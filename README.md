@@ -34,10 +34,11 @@ Ubuntu 22.04, ROS 2 Humble, webcam.
 # 1. Đặt package vào workspace
 cd ~/ros2_ws/src && git clone <repo này>
 
-# 2. Thư viện nhận diện biểu cảm. Dùng TensorFlow bản CPU (~274 MB, nhẹ hơn bản đầy đủ ~572 MB)
+# 2. Thư viện nhận diện biểu cảm (đúng thứ tự). TensorFlow bản CPU ~274 MB, nhẹ hơn bản đầy đủ ~572 MB
 pip install --default-timeout=120 --retries 10 tensorflow-cpu==2.21.0
-pip install --default-timeout=120 --retries 10 --no-deps tf-keras==2.21.0   # --no-deps: tránh kéo bản tensorflow nặng
+pip install --default-timeout=120 --retries 10 --no-deps tf-keras==2.21.0
 pip install --default-timeout=120 --retries 10 -r requirements.txt
+pip install --default-timeout=120 --retries 10 --no-deps deepface retina-face
 
 # 3. Build
 cd ~/ros2_ws && colcon build --packages-select tb4_emotion_control
@@ -51,9 +52,14 @@ Lưu ý khi cài:
 - Nếu `import tensorflow` báo `No module named 'tensorflow.python'` thì cài đặt bị ngắt giữa chừng:
   `pip uninstall -y tensorflow tensorflow-cpu`, xóa thư mục `tensorflow` còn sót trong
   `~/.local/lib/python3.10/site-packages/`, rồi cài lại.
-- DeepFace kéo theo OpenCV bản *headless*, bản này làm `cv2.imshow` báo lỗi hoặc không hiện cửa sổ.
-  Nếu gặp:
-  `pip uninstall -y opencv-python-headless opencv-contrib-python-headless && pip install opencv-python`.
+- **NumPy phải là 1.x.** `opencv-python` 4.12 trở lên đòi NumPy 2, mà NumPy 2 làm hỏng scipy/pandas của
+  hệ thống (lỗi `module that was compiled using NumPy 1.x cannot be run in NumPy 2` hoặc
+  `numpy.dtype size changed`) và `cv_bridge` của ROS 2 Humble. Vì vậy `requirements.txt` ghim NumPy < 2 và
+  OpenCV 4.11. Nếu lỡ cài phải bản mới:
+  `pip uninstall -y opencv-python opencv-python-headless opencv-contrib-python opencv-contrib-python-headless`
+  rồi `pip install -r requirements.txt`.
+- DeepFace và retina-face khai báo cần OpenCV bản *headless* (không hiện được cửa sổ), nên cài chúng bằng
+  `--no-deps` như trên để không ghi đè bản OpenCV có giao diện.
 - Backend `fer` (`backend:=fer`) với `fer` 25.x được import bằng `from fer.fer import FER`; mã đã xử lý
   cả cách import cũ.
 
