@@ -71,6 +71,17 @@ Terminal 1, khởi chạy TurtleBot trong Gazebo (theo các bài thực hành tr
 ros2 launch turtlebot4_ignition_bringup turtlebot4_ignition.launch.py
 ```
 
+Nếu Gazebo kẹt ở `Requesting list of world names` và cửa sổ đen "not responding": world mặc định
+`warehouse` tải model từ Internet (Fuel) nên mạng yếu sẽ treo. Dùng world trống không cần mạng:
+
+```bash
+python3 scripts/make_empty_world.py        # sinh ~/empty.sdf từ warehouse.sdf đã cài, bỏ model Fuel
+sudo cp ~/empty.sdf /opt/ros/humble/share/turtlebot4_ignition_bringup/worlds/empty.sdf
+ros2 launch turtlebot4_ignition_bringup turtlebot4_ignition.launch.py world:=empty
+```
+
+(Cách nhanh hơn: `world:=maze`, world này không dùng model tải về.)
+
 Terminal 2:
 
 ```bash
