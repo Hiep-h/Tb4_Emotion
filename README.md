@@ -34,8 +34,10 @@ Ubuntu 22.04, ROS 2 Humble, webcam.
 # 1. Đặt package vào workspace
 cd ~/ros2_ws/src && git clone <repo này>
 
-# 2. Thư viện nhận diện biểu cảm (chọn DeepFace hoặc FER)
-pip install -r requirements.txt
+# 2. Thư viện nhận diện biểu cảm. Dùng TensorFlow bản CPU (~274 MB, nhẹ hơn bản đầy đủ ~572 MB)
+pip install --default-timeout=120 --retries 10 tensorflow-cpu==2.21.0
+pip install --default-timeout=120 --retries 10 --no-deps tf-keras==2.21.0   # --no-deps: tránh kéo bản tensorflow nặng
+pip install --default-timeout=120 --retries 10 -r requirements.txt
 
 # 3. Build
 cd ~/ros2_ws && colcon build --packages-select tb4_emotion_control
@@ -43,8 +45,12 @@ source install/setup.bash
 ```
 
 Lưu ý khi cài:
-- `pip install deepface` **không** tự cài TensorFlow. Cần `tensorflow` và, với TF ≥ 2.16, cả `tf-keras`
-  (đã có trong `requirements.txt`). Lần chạy đầu DeepFace tự tải trọng số model nên cần mạng.
+- `pip install deepface` **không** tự cài TensorFlow. Cần TensorFlow và, với TF ≥ 2.16, cả `tf-keras`
+  (lệnh ở bước 2). Tổng dung lượng tải khoảng 0,4 GB (Linux x86_64). Lần chạy đầu DeepFace còn tải
+  thêm trọng số model nên cần mạng.
+- Nếu `import tensorflow` báo `No module named 'tensorflow.python'` thì cài đặt bị ngắt giữa chừng:
+  `pip uninstall -y tensorflow tensorflow-cpu`, xóa thư mục `tensorflow` còn sót trong
+  `~/.local/lib/python3.10/site-packages/`, rồi cài lại.
 - DeepFace kéo theo OpenCV bản *headless*, bản này làm `cv2.imshow` báo lỗi hoặc không hiện cửa sổ.
   Nếu gặp:
   `pip uninstall -y opencv-python-headless opencv-contrib-python-headless && pip install opencv-python`.

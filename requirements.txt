@@ -1,8 +1,9 @@
-# Chọn một backend nhận diện biểu cảm:
+# Cài TensorFlow riêng trước, đừng dùng `pip install -r` cho dòng TensorFlow (xem README):
+#   pip install tensorflow-cpu==2.21.0        # ~274 MB, đủ cho DeepFace chạy bằng CPU
+#   pip install --no-deps tf-keras==2.21.0    # --no-deps để pip không tải thêm bản tensorflow ~572 MB
+# Phần còn lại cài bằng: pip install -r requirements.txt
 deepface
-tensorflow
-tf-keras          # bắt buộc với TensorFlow >= 2.16
-# fer             # backend:=fer (cũng cần tensorflow)
+# fer             # backend:=fer (kéo thêm PyTorch, rất nặng)
 
 # Cần bản OpenCV có giao diện (không phải headless) để hiện cửa sổ webcam:
 opencv-python
