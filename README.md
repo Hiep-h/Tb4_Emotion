@@ -89,6 +89,15 @@ source ~/ros2_ws/install/setup.bash
 ros2 launch tb4_emotion_control emotion_control.launch.py
 ```
 
+**Khi chạy với Gazebo hãy thêm `use_sim_time:=true`.** Gazebo hiếm khi chạy đúng 100% tốc độ thời gian thực
+(góc dưới cửa sổ Gazebo hiện phần trăm). Nếu chỉ 30% mà node đếm giờ theo đồng hồ thật thì quỹ đạo bị cụt
+(ví dụ Surprise chỉ quay khoảng 1/4 vòng). Với `use_sim_time:=true` thời lượng quỹ đạo tính theo đồng hồ
+mô phỏng nên robot vẫn đi đủ, chỉ là chậm hơn ngoài đời thật:
+
+```bash
+ros2 launch tb4_emotion_control emotion_control.launch.py use_sim_time:=true
+```
+
 Tùy chọn: `backend:=fer`, `camera_index:=1`, `show_preview:=false`.
 Nhấn `q` hoặc `Esc` trong cửa sổ webcam để thoát.
 
